@@ -13,7 +13,7 @@ ComfyUIのカスタムノードディレクトリにインストールします�
 Clone the repository and navigate to the project directory:
 
 ```bash
-cd ComfyUI/custom_nodes
+cd Yourdirectory/ComfyUI/custom_nodes
 git clone https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node.git
 cd comfyui-color-ascii-art-node
 pip install -r requirements.txt
