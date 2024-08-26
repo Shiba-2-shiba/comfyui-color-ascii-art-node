@@ -1,3 +1,9 @@
+"""
+@author: Shiba-2-shiba
+@title: Colorful ASCII Art Node
+@nickname: ColorASCII
+@description: This node generates colorful ASCII art using custom character sets and fonts.
+"""
 import os
 import random
 from PIL import Image, ImageEnhance, ImageDraw, ImageFont
