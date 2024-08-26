@@ -21,6 +21,7 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/flow_exmaple.png)
 「ASCIIARTNode」がノードに追加されます。
 このノードは、「image」の入力のみに対応し、「Image」の出力を行います。
 パラメーターを調整することで、出力画像を変えることが出来ます。
