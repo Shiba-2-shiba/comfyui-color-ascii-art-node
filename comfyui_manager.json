@@ -1,0 +1,7 @@
+{
+  "name": "ComfyUI ASCII Art Node",
+  "author": "Shiba-2-shiba",
+  "description": "A custom node for generating colorful ASCII art",
+  "url": "https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node",
+  "version": "1.0.0"
+}
