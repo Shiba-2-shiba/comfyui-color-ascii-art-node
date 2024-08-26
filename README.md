@@ -32,6 +32,7 @@ The output image can be changed by adjusting the parameters.
 
 ## Parameters
 
+https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/Asciiartnode.png
 
 ①pixel size：ピクセル化するサイズの数値です。デフォルトは8にしています。
 
@@ -47,16 +48,25 @@ The output image can be changed by adjusting the parameters.
 
 ⑦contrast：画像のコントラストを上げます。デフォルトは1.0ですが、このみによって上げてください。
 
-image: The input image for generating ASCII art.
-pixel_size: Size of the pixels in the ASCII art.
-font_size_min: Minimum font size used for ASCII characters.
-aspect_ratio_correction: Adjustment for aspect ratio.
-font_name: The font file to be used.
-ascii_chars_filename: The text file containing custom ASCII character sets.
-brightness: Adjust the brightness of the input image.
-contrast: Adjust the contrast of the input image.
-Example
-Below is an example of the generated ASCII art:
+
+
+＜English＞
+
+①pixel size: The numerical value of the size to be pixelated. Default is set to 8.
+
+②font_size_min: The size of the font will be twice or three times the size set here.
+
+③aspect_ratio_correction：When there is a noticeable overlap of characters, increase the value here to adjust it.
+
+④font_name：Enter the file name of the font file in the directory. The default is Chewy-Regular.ttf. You can use a different font by placing a font file of your choice.
+
+⑤ascii_chars_filename: Enter ascii_custum_characters.txt in the directory. By changing the characters in this file, you can change the characters to be placed.
+
+⑥brightness: Adjust the brightness of the image. The basic value is 1.0. If you want to make light-colored areas whiter, increase this value.
+
+⑦contrast: Increases the contrast of the image. The default value is 1.0, but you can increase this value depending on the contrast.
+
+
 
 
 
