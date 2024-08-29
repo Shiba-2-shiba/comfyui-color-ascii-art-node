@@ -10,6 +10,6 @@ Repository = "https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "shiba2shiba"
 DisplayName = "comfyui-color-ascii-art-node"
 Icon = ""
