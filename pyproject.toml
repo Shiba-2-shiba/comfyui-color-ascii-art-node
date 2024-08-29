@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-color-ascii-art-node"
+description = "This is a custom node to convert png images into color ASCII art. As noted below, multiple font sizes are used in the specification. The resolution of the generated file is set to be the same as the input image."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["Pillow", "colorama"]
+
+[project.urls]
+Repository = "https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "shiba2shiba"
+DisplayName = "comfyui-color-ascii-art-node"
+Icon = ""
