@@ -10,6 +10,7 @@ from PIL import Image, ImageEnhance, ImageDraw, ImageFont
 import numpy as np
 import torch
 from typing import List
+from folder_paths import get_filename_list, get_full_path  # Adjusted import path
 
 class CustomNode:
     pass
@@ -23,7 +24,7 @@ class ASCIIArtNode(CustomNode):
                 "pixel_size": ("INT", {"default": 6, "min": 1, "max": 100}),
                 "font_size_min": ("INT", {"default": 20, "min": 1, "max": 100}),
                 "aspect_ratio_correction": ("FLOAT", {"default": 0.75, "min": 0.1, "max": 10.0}),
-                "font_name": ("STRING", {"default": "Chewy-Regular.ttf"}),  
+                "font_name": (get_filename_list("font"), {"tooltip": "Select a font from the font directory"}),  # Modified to use the font list
                 "ascii_chars_filename": ("STRING", {"default": "ascii_custom_characters.txt"}),
                 "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
                 "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0})
@@ -35,7 +36,7 @@ class ASCIIArtNode(CustomNode):
 
     def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float):
         base_path = os.path.dirname(os.path.abspath(__file__))
-        font_path = os.path.join(base_path, font_name)
+        font_path = get_full_path("font", font_name)  # Use the full path function for font
         ascii_chars_file_path = os.path.join(base_path, ascii_chars_filename)
 
         print(f"Font path: {font_path}")
