@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/flow_exmaple.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/flow_exmaple.png)
 
 「ASCIIARTNode」「ASCIIARTNodev2」「ASCIIArtSinglefontNode」がノードに追加されます。
 
@@ -63,13 +63,13 @@ ASCIIARTNodev2": The duplication is not basic. The font size is random.
 ASCIIArtSinglefontNode": This is set so that duplication is not basic. The font size is single.
 
 
-![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/flowexmaple_3.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/flowexmaple_3.png)
 
 
 ## Parameters
 
 
-![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/Asciiartnode.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/Asciiartnode.png)
 
 
 ①pixel size：ピクセル化するサイズの数値です。デフォルトは8にしています。
