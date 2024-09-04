@@ -13,6 +13,15 @@ As noted below, multiple font sizes are used in the specification.
 
 The resolution of the generated file is set to be the same as the input image.
 
+
+## 修正歴
+
+
+2024/9/5　カスタムノードにmaskの入力を追加しました。若干処理速度を上げるスクリプトを追加しました。
+
+2024/9/3　カスタムノードの種類を3種類に追加しました。
+
+
 ## Installation
 
 ComfyUIのカスタムノードディレクトリにインストールします。
