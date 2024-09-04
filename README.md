@@ -29,18 +29,18 @@ pip install -r requirements.txt
 
 ## Usage
 
-![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/flow_exmaple.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/exampleflow4.png)
 
 「ASCIIARTNode」「ASCIIARTNodev2」「ASCIIArtSinglefontNode」がノードに追加されます。
 
-これらのノードは、「image」の入力のみに対応し、「Image」の出力を行います。
+これらのノードは、「image」と「mask」の入力に対応し、「Image」の出力を行います。
 
 パラメーターを調整することで、出力画像を変えることが出来ます。
 
 
 ASCIIARTNode”, ‘ASCIIARTNodev2’, and ‘ASCIIARTSinglefontNode’ will be added to the nodes.
 
-This node accepts only “image” input and outputs “Image”.
+This node accepts  “image” and “mask” input and outputs “Image”.
 
 The output image can be changed by adjusting the parameters.
 
@@ -63,24 +63,22 @@ ASCIIARTNodev2": The duplication is not basic. The font size is random.
 ASCIIArtSinglefontNode": This is set so that duplication is not basic. The font size is single.
 
 
-![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/flowexmaple_3.png)
-
 
 ## Parameters
 
 
-![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/Asciiartnode.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/nodeexmaple.png)
 
 
-①pixel size：ピクセル化するサイズの数値です。デフォルトは8にしています。
+①pixel size：ピクセル化するサイズの数値です。デフォルトは20にしています。ピクセルサイズとフォントサイズが同じだと綺麗に配置される傾向があります。
 
 ②font_size_min：ここで設定したサイズと、２倍、３倍のサイズのフォントが使用されます(ASCIIARTNodeのみ)。
 
 ③aspect_ratio_correction：文字の重複が目立つ際にここの数値を大きくして調整します。
 
-④font_name：fontフォルダ内にあるフォントファイルのリストから選択できます。デフォルトはChewy-Regular.ttfです。好きなフォントファイルを追加で配置することで別なフォントが使用できます。
+④font_name：fontフォルダ内にあるフォントファイルのリストから選択できます。デフォルトはChewy-Regular.ttfです。
 
-⑤ascii_chars_filename：ディレクトリ内のset1.txtと入力してください。この中の文字を変えることで、配置される文字を変えることができます。set2-set5がありますが、文字に対応していないフォントは白紙になります。
+⑤ascii_chars_filename：ディレクトリ内のset1.txtと入力してください。この中の文字を変えることで、配置される文字を変えることができます。set1-set5がありますが、文字に対応していないフォントを選択した場合は出力が白紙になります。
 
 ⑥brightness：画像の明るさの調整をします。基本は1.0です。色が薄いところを白くしたい場合はこの数値を上げます。
 

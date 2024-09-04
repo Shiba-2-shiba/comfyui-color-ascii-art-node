@@ -10,7 +10,7 @@ from PIL import Image, ImageEnhance, ImageDraw, ImageFont
 import numpy as np
 import torch
 from typing import List
-from folder_paths import get_filename_list, get_full_path  # Adjusted import path
+from folder_paths import get_filename_list, get_full_path
 
 class CustomNode:
     pass
@@ -24,33 +24,30 @@ class ASCIIArtNode(CustomNode):
                 "pixel_size": ("INT", {"default": 6, "min": 1, "max": 100}),
                 "font_size_min": ("INT", {"default": 20, "min": 1, "max": 100}),
                 "aspect_ratio_correction": ("FLOAT", {"default": 0.75, "min": 0.1, "max": 10.0}),
-                "font_name": (get_filename_list("font"), {"tooltip": "Select a font from the font directory"}),  # Modified to use the font list
+                "font_name": (get_filename_list("font"), {"tooltip": "Select a font from the font directory"}),
                 "ascii_chars_filename": ("STRING", {"default": "ascii_custom_characters.txt"}),
                 "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
-                "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0})
+                "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
+            },
+            "optional": {
+                "mask": ("MASK",),
             }
         }
     
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_ascii_art"
 
-    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float):
+    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, mask=None):
         base_path = os.path.dirname(os.path.abspath(__file__))
-        font_path = get_full_path("font", font_name)  # Use the full path function for font
+        font_path = get_full_path("font", font_name)
         ascii_chars_file_path = os.path.join(base_path, ascii_chars_filename)
 
-        print(f"Font path: {font_path}")
-        print(f"ASCII chars file path: {ascii_chars_file_path}")
-
         if isinstance(image, torch.Tensor):
-            print(f"Initial shape of tensor: {image.shape}")
             if image.dim() == 4:
                 image = image.squeeze(0)
-
             image = image.cpu().numpy()
             image = (image * 255).astype(np.uint8)
             image = Image.fromarray(image, mode='RGB')
-
         elif isinstance(image, np.ndarray):
             image = Image.fromarray(image)
         elif not isinstance(image, Image.Image):
@@ -61,11 +58,22 @@ class ASCIIArtNode(CustomNode):
         pixelated_image = self.pixelate_image(image, pixel_size, aspect_ratio_correction, brightness, contrast)
         ascii_image = self.create_ascii_art(pixelated_image, chosen_set, font_path, font_size_min, image.size)
 
-        ascii_image_np = np.array(ascii_image) / 255.0
-        ascii_image_tensor = torch.tensor(ascii_image_np).permute(2, 0, 1).unsqueeze(0)
+        if mask is not None:
+            mask = mask.squeeze().cpu().numpy()
+            mask = Image.fromarray((mask * 255).astype(np.uint8), mode='L')
+            mask = mask.resize(image.size, Image.LANCZOS)
+            ascii_image = ascii_image.convert('RGBA')
+            final_image = Image.new('RGBA', image.size)
+            final_image.paste(image.convert('RGBA'), (0, 0), Image.fromarray(255 - np.array(mask), mode='L'))
+            final_image.paste(ascii_image, (0, 0), mask)
+        else:
+            final_image = ascii_image
 
-        ascii_image_tensor = ascii_image_tensor.permute(0, 2, 3, 1)
-        return (ascii_image_tensor, )
+        final_image_np = np.array(final_image) / 255.0
+        final_image_tensor = torch.tensor(final_image_np).permute(2, 0, 1).unsqueeze(0)
+
+        final_image_tensor = final_image_tensor.permute(0, 2, 3, 1)
+        return (final_image_tensor, )
 
     def load_custom_characters(self, file_path: str) -> List[str]:
         if not os.path.isfile(file_path):
@@ -97,7 +105,6 @@ class ASCIIArtNode(CustomNode):
         draw = ImageDraw.Draw(ascii_image)
 
         font_sizes = [font_size_min, font_size_min * 2, font_size_min * 3]
-
         font_cache = {size: ImageFont.truetype(font_path, size) for size in font_sizes}
 
         scale_x = width / image.width
