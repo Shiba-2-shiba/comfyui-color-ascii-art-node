@@ -19,11 +19,11 @@ class ASCIIArtNodev2(CustomNode):
         return {
             "required": {
                 "image": ("IMAGE",),
-                "pixel_size": ("INT", {"default": 6, "min": 1, "max": 100}),
+                "pixel_size": ("INT", {"default": 20, "min": 1, "max": 100}),
                 "font_size_min": ("INT", {"default": 20, "min": 1, "max": 100}),
-                "aspect_ratio_correction": ("FLOAT", {"default": 0.75, "min": 0.1, "max": 10.0}),
+                "aspect_ratio_correction": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0}),
                 "font_name": (get_filename_list("font"), {"tooltip": "Select a font from the font directory"}),
-                "ascii_chars_filename": ("STRING", {"default": "ascii_custom_characters.txt"}),
+                "ascii_chars_filename": ("STRING", {"default": "set1.txt"}),
                 "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
                 "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0})
             },
