@@ -21,11 +21,12 @@ class ASCIIArtNodev2(CustomNode):
                 "image": ("IMAGE",),
                 "pixel_size": ("INT", {"default": 20, "min": 1, "max": 100}),
                 "font_size_min": ("INT", {"default": 20, "min": 1, "max": 100}),
-                "aspect_ratio_correction": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0}),
+                "aspect_ratio_correction": ("FLOAT", {"default": 1, "min": 0.1, "max": 10.0}),
                 "font_name": (get_filename_list("font"), {"tooltip": "Select a font from the font directory"}),
-                "ascii_chars_filename": ("STRING", {"default": "set1.txt"}),
+                "ascii_chars_filename": ("STRING", {"default": "set5.txt"}),
                 "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
-                "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0})
+                "contrast": ("FLOAT", {"default": 1.5, "min": 0.0, "max": 3.0}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),  # Use seed for randomness
             },
             "optional": {
                 "mask": ("MASK",),
@@ -35,11 +36,12 @@ class ASCIIArtNodev2(CustomNode):
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_ascii_art"
 
-    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, mask=None):
+    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, seed: int, mask=None):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         font_path = get_full_path("font", font_name)
         ascii_chars_file_path = os.path.join(os.path.dirname(__file__), ascii_chars_filename)
 
+        # Handle the image input
         if isinstance(image, torch.Tensor):
             if image.dim() == 4:
                 image = image.squeeze(0)
@@ -51,11 +53,18 @@ class ASCIIArtNodev2(CustomNode):
         elif not isinstance(image, Image.Image):
             raise ValueError(f"Unsupported image type: Expected a torch.Tensor, PIL.Image, or NumPy array, but got {type(image)}")
 
+        # Load ASCII character sets
         ascii_sets = self.load_custom_characters(ascii_chars_file_path)
-        chosen_set = self.choose_random_set(ascii_sets)
+
+        # Use the seed to control randomness
+        random.seed(seed)
+        chosen_set = random.choice(ascii_sets)
+
+        # Apply pixelation and ASCII conversion
         pixelated_image = self.pixelate_image(image, pixel_size, aspect_ratio_correction, brightness, contrast)
         ascii_image = self.create_ascii_art(pixelated_image, chosen_set, font_path, font_size_min, image.size, device)
 
+        # Handle mask application
         if mask is not None:
             mask = mask.squeeze().cpu().numpy()
             mask = Image.fromarray((mask * 255).astype(np.uint8), mode='L')
@@ -67,12 +76,13 @@ class ASCIIArtNodev2(CustomNode):
         else:
             final_image = ascii_image
 
+        # Convert final image back to tensor for output
         final_image_np = np.array(final_image) / 255.0
         final_image_tensor = torch.tensor(final_image_np).permute(2, 0, 1).unsqueeze(0)
 
-        final_image_tensor = final_image_tensor.permute(0, 2, 3, 1)
-        return (final_image_tensor,)
+        return (final_image_tensor.permute(0, 2, 3, 1),)
 
+    # Helper methods for loading, pixelating, and creating ASCII art
     def load_custom_characters(self, file_path: str) -> List[str]:
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -82,15 +92,13 @@ class ASCIIArtNodev2(CustomNode):
         sets = [line.strip().split(': ')[1] for line in lines if line.startswith('Set')]
         return sets
 
-    def choose_random_set(self, sets: List[str]) -> str:
-        return random.choice(sets)
-
     def pixelate_image(self, image: Image.Image, pixel_size: int, aspect_ratio_correction: float, brightness: float, contrast: float) -> Image.Image:
         enhancer = ImageEnhance.Brightness(image)
         image = enhancer.enhance(brightness)
         enhancer = ImageEnhance.Contrast(image)
         image = enhancer.enhance(contrast)
 
+        # Apply pixelation
         with autocast():
             image_tensor = torch.tensor(np.array(image)).permute(2, 0, 1).float().to('cuda' if torch.cuda.is_available() else 'cpu') / 255.0
             new_width = image_tensor.shape[2] // pixel_size
@@ -103,36 +111,32 @@ class ASCIIArtNodev2(CustomNode):
         ascii_image = Image.new('RGB', (width, height), (255, 255, 255))
         draw = ImageDraw.Draw(ascii_image)
 
-        # Adjust font caching to handle a wider range of sizes
+        # Load or create font cache for various sizes
         if font_path not in self.font_cache:
             self.font_cache[font_path] = {size: ImageFont.truetype(font_path, size) for size in range(font_size_min, font_size_min * 4 + 1, font_size_min)}
 
         font_cache = self.font_cache[font_path]
 
+        # Scale and prepare ASCII drawing
         scale_x = width / image.width
         scale_y = height / image.height
-
         image_np = np.array(image)
         brightness_values = image_np.mean(axis=2) / 255.0
         font_sizes = np.where(brightness_values > 0.5, font_size_min * 2, font_size_min)
 
-        # Ensure all font sizes are in cache, otherwise fallback to nearest size
-        batch_size = 20
-        for y in range(0, image.height, batch_size):  # Process rows in batches
-            for x in range(0, image.width, batch_size):  # Process columns in batches
-                for dy in range(min(batch_size, image.height - y)):  # Ensure no pixels are left out
-                    for dx in range(min(batch_size, image.width - x)):  # Ensure no pixels are left out
-                        scaled_x = int((x + dx) * scale_x)
-                        scaled_y = int((y + dy) * scale_y)
+        for y in range(0, image.height):
+            for x in range(0, image.width):
+                scaled_x = int(x * scale_x)
+                scaled_y = int(y * scale_y)
 
-                        pixel_color = tuple(image_np[y + dy, x + dx])
-                        ascii_char = ascii_chars[int(brightness_values[y + dy, x + dx] * (len(ascii_chars) - 1))]
-                        font_size = font_sizes[y + dy, x + dx]
-                        
-                        # Ensure we use the nearest available font size if the requested size is not cached
-                        nearest_size = min(font_cache.keys(), key=lambda s: abs(s - font_size))
-                        font = font_cache[nearest_size]
+                pixel_color = tuple(image_np[y, x])
+                ascii_char = ascii_chars[int(brightness_values[y, x] * (len(ascii_chars) - 1))]
+                font_size = font_sizes[y, x]
+                
+                # Use nearest font size from cache
+                nearest_size = min(font_cache.keys(), key=lambda s: abs(s - font_size))
+                font = font_cache[nearest_size]
 
-                        draw.text((scaled_x, scaled_y), ascii_char, font=font, fill=pixel_color)
+                draw.text((scaled_x, scaled_y), ascii_char, font=font, fill=pixel_color)
 
         return ascii_image
