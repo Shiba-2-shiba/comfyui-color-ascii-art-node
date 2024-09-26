@@ -17,6 +17,8 @@ The resolution of the generated file is set to be the same as the input image.
 ## 修正歴
 
 
+2024/9/26　カスタムノードにシード値を追加しました。
+
 2024/9/18　カスタムノードのデフォルト値を修正しました。
 
 2024/9/5　カスタムノードにmaskの入力を追加しました。若干処理速度を上げるスクリプトを追加しました。
@@ -78,7 +80,7 @@ ASCIIArtSinglefontNode": This is set so that duplication is not basic. The font 
 ## Parameters
 
 
-![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/nodeexmaple.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/nodeimage2.png)
 
 
 ①pixel size：ピクセル化するサイズの数値です。デフォルトは20にしています。ピクセルサイズとフォントサイズが同じだと綺麗に配置される傾向があります。
@@ -94,6 +96,8 @@ ASCIIArtSinglefontNode": This is set so that duplication is not basic. The font 
 ⑥brightness：画像の明るさの調整をします。基本は1.0です。色が薄いところを白くしたい場合はこの数値を上げます。
 
 ⑦contrast：画像のコントラストを上げます。デフォルトは1.0ですが、このみによって上げてください。
+
+⑧seed：文字の選択のランダム化を調整しています。
 
 
 ＜English＞
