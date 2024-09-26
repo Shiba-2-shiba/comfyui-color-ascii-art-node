@@ -26,6 +26,7 @@ class ASCIIArtSinglefontNode(CustomNode):
                 "ascii_chars_filename": ("STRING", {"default": "set5.txt"}),
                 "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
                 "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),  # Added seed
             },
             "optional": {
                 "mask": ("MASK",),
@@ -35,7 +36,7 @@ class ASCIIArtSinglefontNode(CustomNode):
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_ascii_art"
 
-    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, mask=None):
+    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, seed: int, mask=None):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         base_path = os.path.dirname(os.path.abspath(__file__))
         font_path = get_full_path("font", font_name)
@@ -52,8 +53,14 @@ class ASCIIArtSinglefontNode(CustomNode):
         elif not isinstance(image, Image.Image):
             raise ValueError(f"Unsupported image type: Expected a torch.Tensor, PIL.Image, or NumPy array, but got {type(image)}")
 
+        # Load ASCII character sets
         ascii_sets = self.load_custom_characters(ascii_chars_file_path)
-        chosen_set = self.choose_random_set(ascii_sets)
+
+        # Use seed to control randomness
+        random.seed(seed)
+        chosen_set = random.choice(ascii_sets)
+
+        # Apply pixelation and ASCII conversion
         pixelated_image = self.pixelate_image(image, pixel_size, aspect_ratio_correction, brightness, contrast)
         ascii_image = self.create_ascii_art(pixelated_image, chosen_set, font_path, font_size_min, image.size)
 
@@ -82,10 +89,7 @@ class ASCIIArtSinglefontNode(CustomNode):
             lines = file.readlines()
         sets = [line.strip().split(': ')[1] for line in lines if line.startswith('Set')]
         return sets
-    
-    def choose_random_set(self, sets: List[str]) -> str:
-        return random.choice(sets)
-    
+
     def pixelate_image(self, image: Image.Image, pixel_size: int, aspect_ratio_correction: float, brightness: float, contrast: float) -> Image.Image:
         enhancer = ImageEnhance.Brightness(image)
         image = enhancer.enhance(brightness)
@@ -115,7 +119,7 @@ class ASCIIArtSinglefontNode(CustomNode):
         image_np = np.array(image)
         brightness_values = image_np.mean(axis=2) / 255.0
 
-        batch_size = 20  # This is where the batch processing is done
+        batch_size = 20
         for y in range(0, image.height, batch_size):
             for x in range(0, image.width, batch_size):
                 for dy in range(min(batch_size, image.height - y)):
