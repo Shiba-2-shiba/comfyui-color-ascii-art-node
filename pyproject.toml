@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-color-ascii-art-node"
 description = "This is a custom node to convert png images into color ASCII art. As noted below, multiple font sizes are used in the specification. The resolution of the generated file is set to be the same as the input image."
-version = "1.1.0"
+version = "1.2.0"
 license = {file = "LICENSE"}
 dependencies = ["Pillow", "colorama"]
 
