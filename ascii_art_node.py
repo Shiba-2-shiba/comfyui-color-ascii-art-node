@@ -22,12 +22,13 @@ class ASCIIArtNode(CustomNode):
             "required": {
                 "image": ("IMAGE", ),
                 "pixel_size": ("INT", {"default": 20, "min": 1, "max": 100}),
-                "font_size_min": ("INT", {"default": 20, "min": 1, "max": 100}),
-                "aspect_ratio_correction": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0}),
+                "font_size_min": ("INT", {"default": 10, "min": 1, "max": 100}),
+                "aspect_ratio_correction": ("FLOAT", {"default": 1, "min": 0.1, "max": 10.0}),
                 "font_name": (get_filename_list("font"), {"tooltip": "Select a font from the font directory"}),
-                "ascii_chars_filename": ("STRING", {"default": "set1.txt"}),
+                "ascii_chars_filename": ("STRING", {"default": "set5.txt"}),
                 "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
                 "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 100000}),  # Added seed functionality
             },
             "optional": {
                 "mask": ("MASK",),
@@ -37,7 +38,7 @@ class ASCIIArtNode(CustomNode):
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "generate_ascii_art"
 
-    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, mask=None):
+    def generate_ascii_art(self, image, pixel_size: int, font_size_min: int, aspect_ratio_correction: float, font_name: str, ascii_chars_filename: str, brightness: float, contrast: float, seed: int, mask=None):
         base_path = os.path.dirname(os.path.abspath(__file__))
         font_path = get_full_path("font", font_name)
         ascii_chars_file_path = os.path.join(base_path, ascii_chars_filename)
@@ -53,8 +54,16 @@ class ASCIIArtNode(CustomNode):
         elif not isinstance(image, Image.Image):
             raise ValueError(f"Unsupported image type: Expected a torch.Tensor, PIL.Image, or NumPy array, but got {type(image)}")
 
+        # Load ASCII character sets
         ascii_sets = self.load_custom_characters(ascii_chars_file_path)
-        chosen_set = self.choose_random_set(ascii_sets)
+
+        # Set random seed
+        random.seed(seed)
+
+        # Use seed to control randomness
+        chosen_set = random.choice(ascii_sets)
+
+        # Apply pixelation and ASCII conversion
         pixelated_image = self.pixelate_image(image, pixel_size, aspect_ratio_correction, brightness, contrast)
         ascii_image = self.create_ascii_art(pixelated_image, chosen_set, font_path, font_size_min, image.size)
 
@@ -83,9 +92,6 @@ class ASCIIArtNode(CustomNode):
             lines = file.readlines()
         sets = [line.strip().split(': ')[1] for line in lines if line.startswith('Set')]
         return sets
-    
-    def choose_random_set(self, sets: List[str]) -> str:
-        return random.choice(sets)
     
     def pixelate_image(self, image: Image.Image, pixel_size: int, aspect_ratio_correction: float, brightness: float, contrast: float) -> Image.Image:
         enhancer = ImageEnhance.Brightness(image)
