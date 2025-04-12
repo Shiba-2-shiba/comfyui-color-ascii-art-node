@@ -45,21 +45,18 @@ pip install -r requirements.txt
 
 ![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/img1.png)
 
-「ASCIIARTNode」「ASCIIARTNodev2」「ASCIIArtSinglefontNode」がノードに追加されます。
+「ASCIIARTNode v3」がノードに追加されます。
 
-これらのノードは、「image」と「mask」の入力に対応し、「Image」の出力を行います。
+このノードは、「image」と「mask」の入力に対応し、カラーアスキー化した「Image」の出力を行います。
 
 パラメーターを調整することで、出力画像を変えることが出来ます。
 
 
-ASCIIARTNode”, ‘ASCIIARTNodev2’, and ‘ASCIIARTSinglefontNode’ will be added to the nodes.
+ASCIIARTNode v3” will be added to the node.
 
-This node accepts  “image” and “mask” input and outputs “Image”.
+This node responds to “image” and “mask” inputs and outputs a color ASCII-ized “Image”.
 
 The output image can be changed by adjusting the parameters.
-
-
-現在使用出来るノードは「ASCIIARTNode v3」のです。
 
 
 
@@ -85,22 +82,6 @@ The output image can be changed by adjusting the parameters.
 
 ⑧seed：文字の選択のランダム化を調整しています。
 
-
-＜English＞
-
-①pixel size: The numerical value of the size to be pixelated. Default is set to 8.
-
-②font_size_min: The size of the font will be twice or three times the size set here（ASCIIARTNode）.
-
-③aspect_ratio_correction：When there is a noticeable overlap of characters, increase the value here to adjust it.
-
-④font_name：Enter the file name of the font file in the directory. The default is Chewy-Regular.ttf. You can use a different font by placing a font file of your choice.
-
-⑤ascii_chars_filename: Enter ascii_custum_characters.txt in the directory. By changing the characters in this file, you can change the characters to be placed.
-
-⑥brightness: Adjust the brightness of the image. The basic value is 1.0. If you want to make light-colored areas whiter, increase this value.
-
-⑦contrast: Increases the contrast of the image. The default value is 1.0, but you can increase this value depending on the contrast.
 
 
 
