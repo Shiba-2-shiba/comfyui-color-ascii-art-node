@@ -1,2 +1,3 @@
 Pillow
 colorama
+color-matcher
