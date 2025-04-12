@@ -66,7 +66,7 @@ The output image can be changed by adjusting the parameters.
 ## Parameters
 
 
-![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/nodeimage2.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/img2.png)
 
 
 ①pixel size：ピクセル化するサイズの数値です。デフォルトは20にしています。ピクセルサイズとフォントサイズが同じだと綺麗に配置される傾向があります。
