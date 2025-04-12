@@ -59,22 +59,7 @@ This node accepts  “image” and “mask” input and outputs “Image”.
 The output image can be changed by adjusting the parameters.
 
 
-現在使用出来るノードの種類の比較です。
-
-「ASCIIARTNode」：3種類のサイズのフォントが配置されますが、重複があります。アスペクト比の増減で改善されます。
-
-「ASCIIARTNodev2」：重複を基本しないように設定しています。フォントのサイズはランダムです。
-
-「ASCIIArtSinglefontNode」：重複を基本しないように設定しています。フォントのサイズが単一です。
-
-
-Here is a comparison of the types of nodes currently available
-
-ASCIIARTNode": Three font sizes are placed, but there is some overlap. This can be improved by increasing or decreasing the aspect ratio.
-
-ASCIIARTNodev2": The duplication is not basic. The font size is random.
-
-ASCIIArtSinglefontNode": This is set so that duplication is not basic. The font size is single.
+現在使用出来るノードは「ASCIIARTNode v3」のです。
 
 
 
