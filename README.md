@@ -43,7 +43,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-![Example Workflow](https://github.com/Shiba-2-shiba/testascii/blob/main/ref_image/exampleflow4.png)
+![Example Workflow](https://github.com/Shiba-2-shiba/comfyui-color-ascii-art-node/blob/main/ref_image/img1.png)
 
 「ASCIIARTNode」「ASCIIARTNodev2」「ASCIIArtSinglefontNode」がノードに追加されます。
 
