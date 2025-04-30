@@ -16,6 +16,8 @@ The resolution of the generated file is set to be the same as the input image.
 
 ## 修正歴
 
+2025/4830　バッチ処理に対応しました。
+
 2025/4/12　カスタムノードをv3のみにし、大幅に内容を修正しました。
 
 2024/9/26　カスタムノードにシード値を追加しました。
