@@ -1,0 +1,183 @@
+{
+  "id": "9f87d36a-8d29-44c1-9599-2996679d23b6",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 5,
+  "nodes": [
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        283.164794921875,
+        308.095947265625
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.27",
+        "Node name for S&R": "LoadImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "00009-3617192177.png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveImage",
+      "pos": [
+        1031.4769287109375,
+        279.5209045410156
+      ],
+      "size": [
+        560.679931640625,
+        439.7971496582031
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.27",
+        "Node name for S&R": "SaveImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ASCIIArtNodeV3",
+      "pos": [
+        692.074462890625,
+        281.2067565917969
+      ],
+      "size": [
+        291.412109375,
+        558
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-color-ascii-art-node",
+        "ver": "4cf2386b895b0da98813699ff14c8153dd4762d0",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ASCIIArtNodeV3"
+      },
+      "widgets_values": [
+        16,
+        "area",
+        0.75,
+        "Chewy-Regular.ttf",
+        12,
+        24,
+        "set1.txt",
+        "luminance_hue",
+        289165129576696,
+        "randomize",
+        "unsharp",
+        1,
+        0,
+        1,
+        1,
+        5,
+        "None",
+        3,
+        false,
+        "mkl",
+        "INFO"
+      ]
+    }
+  ],
+  "links": [
+    [
+      4,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      4,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.1167815779424874,
+      "offset": [
+        -504.8799813712012,
+        -124.59471727840952
+      ]
+    },
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [],
+    "frontendVersion": "1.21.7"
+  },
+  "version": 0.4
+}
