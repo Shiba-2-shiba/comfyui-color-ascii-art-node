@@ -144,8 +144,8 @@ def lanczos_resize(
             weights_h, indices_h, size_h = compute_weights_and_indices(
                 H, H_out, h_scale, a, dtype, device, support_scaling
             )
-            # Create sparse matrix: W_h [H_out, H]
-            W_h = torch.sparse_coo_tensor(indices_h, weights_h, size_h, device=device).to(dtype)
+            # Create sparse matrix and convert to dense to support batched matmul
+            W_h = torch.sparse_coo_tensor(indices_h, weights_h, size_h, device=device).to(dtype).to_dense()
             # Reshape input: [B*C, H, W]
             x_reshaped = x.reshape(B * C, H, W)
             # Apply matrix multiplication: W_h @ x_reshaped -> [B*C, H_out, W]
@@ -158,13 +158,13 @@ def lanczos_resize(
             weights_w, indices_w, size_w = compute_weights_and_indices(
                 W, W_out, w_scale, a, dtype, device, support_scaling
             )
-            # Create sparse matrix: W_w [W_out, W]
-            W_w = torch.sparse_coo_tensor(indices_w, weights_w, size_w, device=device).to(dtype)
+            # Create sparse matrix and convert to dense
+            W_w = torch.sparse_coo_tensor(indices_w, weights_w, size_w, device=device).to(dtype).to_dense()
             # Reshape input: [B*C, H_out, W]
             x_reshaped = x.reshape(B * C, H_out, W)
             # Apply matrix multiplication (transpose W_w for right multiplication):
             # x_reshaped @ W_w.T -> [B*C, H_out, W_out]
-            x = x_reshaped @ W_w.T # Using transpose property: (A @ B).T = B.T @ A.T
+            x = x_reshaped @ W_w.T
             # Reshape back: [B, C, H_out, W_out]
             x = x.reshape(B, C, H_out, W_out)
 
@@ -172,7 +172,6 @@ def lanczos_resize(
 
     except Exception as e:
         logger.error(f"Error during Lanczos resize: {e}", exc_info=True)
-        # Fallback to simpler resize if Lanczos fails? Or re-raise?
         # For now, re-raise
         raise RuntimeError("Lanczos resize failed.") from e
 
