@@ -1,53 +1,73 @@
 # ascii_art_node_v3.py (Main Node File - Modified for Batch Processing and Dynamic Charsets)
+import logging
 import os
 import random
-import logging
+from typing import Optional
+
 import numpy as np
 import torch
-from typing import Optional, Tuple, List
-from PIL import Image
+
+from comfy_api.latest import io
 
 # --- ComfyUI Specific Imports ---
 try:
     from folder_paths import get_filename_list, get_full_path
 except ImportError:
     print("Warning: ComfyUI folder_paths not found. Using dummy functions.")
-    # Dummy functions as provided in the original script
+
     def get_filename_list(dir_name):
         try:
             if dir_name == "font":
-                return [f for f in os.listdir('.') if f.lower().endswith(('.ttf', '.otf'))] or ["dummy_font.ttf"]
-            else:
-                return [f"dummy_{dir_name}_1.txt"]
+                return [f for f in os.listdir(".") if f.lower().endswith((".ttf", ".otf"))] or ["dummy_font.ttf"]
+            return [f"dummy_{dir_name}_1.txt"]
         except Exception:
             return [f"dummy_{dir_name}_error.txt"]
+
     def get_full_path(dir_name, filename):
         return os.path.abspath(filename)
 
 # --- Module Imports ---
 try:
-    from .ascii_utils import (setup_logging, tensor_to_pil, mask_tensor_to_pil,
-                              pil_to_tensor, load_custom_characters,
-                              calculate_edge_info, apply_mask_blending)
-    from .pixelation import pixelate_image
+    from .ascii_utils import (
+        apply_mask_blending,
+        calculate_edge_info,
+        load_custom_characters,
+        mask_tensor_to_pil,
+        pil_to_tensor,
+        setup_logging,
+        tensor_to_pil,
+    )
     from .ascii_drawing import create_ascii_art
+    from .charset_generator import generate_dynamic_charset
     from .colormatch import apply_color_match
-    from .charset_generator import generate_dynamic_charset ### ADDED ###
+    from .pixelation import pixelate_image
 except ImportError as e:
     print(f"Warning: Relative imports failed in main node. Trying direct imports. Error: {e}")
     import sys
+
     sys.path.append(os.path.dirname(__file__))
     try:
-        from ascii_utils import (setup_logging, tensor_to_pil, mask_tensor_to_pil,
-                                 pil_to_tensor, load_custom_characters,
-                                 calculate_edge_info, apply_mask_blending)
-        from pixelation import pixelate_image
+        from ascii_utils import (
+            apply_mask_blending,
+            calculate_edge_info,
+            load_custom_characters,
+            mask_tensor_to_pil,
+            pil_to_tensor,
+            setup_logging,
+            tensor_to_pil,
+        )
         from ascii_drawing import create_ascii_art
+        from charset_generator import generate_dynamic_charset
         from colormatch import apply_color_match
-        from charset_generator import generate_dynamic_charset ### ADDED ###
+        from pixelation import pixelate_image
     except ImportError as direct_e:
-         print(f"Error: Direct imports also failed. Ensure modules are in the correct path. Error: {direct_e}")
-         raise ImportError("Could not import necessary modules. Check file structure and paths.") from e
+        print(
+            "Error: Direct imports also failed. Ensure modules are in the correct path. "
+            f"Error: {direct_e}"
+        )
+        raise ImportError(
+            "Could not import necessary modules. Check file structure and paths."
+        ) from e
 
 
 # --- Logger Setup ---
@@ -61,7 +81,7 @@ if not logger.hasHandlers():
     logger.propagate = False
 
 
-class ASCIIArtNodeV3:
+class ASCIIArtNodeV3(io.ComfyNode):
     """
     Custom ComfyUI node for generating colorful ASCII art.
     Includes options for sharpening, various pixelation methods, color matching,
@@ -72,87 +92,279 @@ class ASCIIArtNodeV3:
     COLOR_MATCH_METHODS = ['mkl', 'hm', 'reinhard', 'idt', 'hm-mkl-hm']
 
     @classmethod
-    def INPUT_TYPES(cls):
-        """Defines the input parameters for the ComfyUI node interface."""
+    def define_schema(cls) -> io.Schema:
         try:
             font_list = get_filename_list("font")
             if not font_list:
-                 logger.warning("No fonts found in ComfyUI's fonts directory. Please add .ttf or .otf files.")
-                 font_list = ["font_not_found.ttf"]
+                logger.warning(
+                    "No fonts found in ComfyUI's fonts directory. Please add .ttf or .otf files."
+                )
+                font_list = ["font_not_found.ttf"]
         except Exception as e:
-            logger.error(f"Could not list fonts from ComfyUI directory: {e}", exc_info=True)
+            logger.error(
+                f"Could not list fonts from ComfyUI directory: {e}",
+                exc_info=True,
+            )
             font_list = ["error_loading_font.ttf"]
 
-        inputs = {
-            "required": {
-                "image": ("IMAGE",),
-                "pixel_size": ("INT", {"default": 20, "min": 1, "max": 200, "step": 1}),
-                "downscale_mode": (cls.DOWNSCALE_MODES, {"default": "area"}),
-                "aspect_ratio_correction": ("FLOAT", {"default": 0.75, "min": 0.1, "max": 10.0, "step": 0.05}),
-                "font_name": (font_list, ),
-                "font_size_min": ("INT", {"default": 8, "min": 1, "max": 100, "step": 1}),
-                "font_size_max": ("INT", {"default": 16, "min": 1, "max": 200, "step": 1}),
-                "char_selection_mode": (["brightness", "hue", "saturation", "luminance_hue"], {"default": "luminance_hue"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-            },
-            "optional": {
-                ### ADDED: Charset generation options ###
-                "charset_source": (["File", "Dynamic"], {"default": "File"}),
-                "ascii_chars_filename": ("STRING", {"default": "set4.txt"}),
-                "dynamic_chars_to_test": ("STRING", {
-                    "multiline": True,
-                    "default": R"""!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~ """
-                }),
-                "dynamic_sigma": ("FLOAT", {"default": 1.5, "min": 0.1, "max": 10.0, "step": 0.1}),
-                ### END ADDED ###
-                "sharpen_mode": (cls.SHARPEN_MODES, {"default": "None"}),
-                "sharpen_amount": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 5.0, "step": 0.1}),
-                "sharpen_threshold": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 5.0, "step": 0.05}),
-                "contrast": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 5.0, "step": 0.05}),
-                "mask": ("MASK",),
-                "mask_blend_radius": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "mask_edge_adjustment": (["None", "SmallerChars", "LowerDensity"], {"default": "None"}),
-                "mask_edge_factor": ("FLOAT", {"default": 3.0, "min": 0.0, "max": 20.0, "step": 0.1}),
-                "enable_color_match": ("BOOLEAN", {"default": False, "label_on": "Enabled", "label_off": "Disabled"}),
-                "color_match_method": (cls.COLOR_MATCH_METHODS, {"default": "mkl"}),
-                "log_level": (["DEBUG", "INFO", "WARNING", "ERROR", "NONE"], {"default": "INFO"}),
-            }
-        }
-        return inputs
+        dynamic_chars_default = (
+            r"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ "
+        )
 
-    RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "generate_ascii_art"
-    CATEGORY = "Image Processing/ASCII Art"
+        return io.Schema(
+            node_id="ASCIIArtNodeV3",
+            display_name="ASCII Art Generator V3",
+            category="Image Processing/ASCII Art",
+            inputs=[
+                io.Image.Input("image", display_name="Image"),
+                io.Int.Input(
+                    "pixel_size",
+                    display_name="Pixel Size",
+                    default=20,
+                    min=1,
+                    max=200,
+                    step=1,
+                ),
+                io.Combo.Input(
+                    "downscale_mode",
+                    options=cls.DOWNSCALE_MODES,
+                    default="area",
+                    display_name="Downscale Mode",
+                ),
+                io.Float.Input(
+                    "aspect_ratio_correction",
+                    display_name="Aspect Ratio Correction",
+                    default=0.75,
+                    min=0.1,
+                    max=10.0,
+                    step=0.05,
+                ),
+                io.Combo.Input(
+                    "font_name",
+                    options=font_list,
+                    display_name="Font",
+                ),
+                io.Int.Input(
+                    "font_size_min",
+                    display_name="Font Size Min",
+                    default=8,
+                    min=1,
+                    max=100,
+                    step=1,
+                ),
+                io.Int.Input(
+                    "font_size_max",
+                    display_name="Font Size Max",
+                    default=16,
+                    min=1,
+                    max=200,
+                    step=1,
+                ),
+                io.Combo.Input(
+                    "char_selection_mode",
+                    options=["brightness", "hue", "saturation", "luminance_hue"],
+                    default="luminance_hue",
+                    display_name="Character Selection",
+                ),
+                io.Int.Input(
+                    "seed",
+                    display_name="Seed",
+                    default=0,
+                    min=0,
+                    max=0xFFFFFFFFFFFFFFFF,
+                ),
+                io.Combo.Input(
+                    "charset_source",
+                    options=["File", "Dynamic"],
+                    default="File",
+                    optional=True,
+                    display_name="Charset Source",
+                ),
+                io.String.Input(
+                    "ascii_chars_filename",
+                    display_name="Charset File",
+                    default="set4.txt",
+                    optional=True,
+                ),
+                io.String.Input(
+                    "dynamic_chars_to_test",
+                    display_name="Dynamic Characters",
+                    default=dynamic_chars_default,
+                    multiline=True,
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "dynamic_sigma",
+                    display_name="Dynamic Sigma",
+                    default=1.5,
+                    min=0.1,
+                    max=10.0,
+                    step=0.1,
+                    optional=True,
+                ),
+                io.Combo.Input(
+                    "sharpen_mode",
+                    options=cls.SHARPEN_MODES,
+                    default="None",
+                    display_name="Sharpen Mode",
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "sharpen_amount",
+                    display_name="Sharpen Amount",
+                    default=1.0,
+                    min=0.0,
+                    max=5.0,
+                    step=0.1,
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "sharpen_threshold",
+                    display_name="Sharpen Threshold",
+                    default=0.0,
+                    min=0.0,
+                    max=1.0,
+                    step=0.01,
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "brightness",
+                    display_name="Brightness",
+                    default=1.0,
+                    min=0.0,
+                    max=5.0,
+                    step=0.05,
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "contrast",
+                    display_name="Contrast",
+                    default=1.0,
+                    min=0.0,
+                    max=5.0,
+                    step=0.05,
+                    optional=True,
+                ),
+                io.Mask.Input(
+                    "mask",
+                    display_name="Mask",
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "mask_blend_radius",
+                    display_name="Mask Blend Radius",
+                    default=5.0,
+                    min=0.0,
+                    max=100.0,
+                    step=0.1,
+                    optional=True,
+                ),
+                io.Combo.Input(
+                    "mask_edge_adjustment",
+                    options=["None", "SmallerChars", "LowerDensity"],
+                    default="None",
+                    display_name="Mask Edge Adjustment",
+                    optional=True,
+                ),
+                io.Float.Input(
+                    "mask_edge_factor",
+                    display_name="Mask Edge Factor",
+                    default=3.0,
+                    min=0.0,
+                    max=20.0,
+                    step=0.1,
+                    optional=True,
+                ),
+                io.Boolean.Input(
+                    "enable_color_match",
+                    display_name="Enable Color Match",
+                    default=False,
+                    label_on="Enabled",
+                    label_off="Disabled",
+                    optional=True,
+                ),
+                io.Combo.Input(
+                    "color_match_method",
+                    options=cls.COLOR_MATCH_METHODS,
+                    default="mkl",
+                    display_name="Color Match Method",
+                    optional=True,
+                ),
+                io.Combo.Input(
+                    "log_level",
+                    options=["DEBUG", "INFO", "WARNING", "ERROR", "NONE"],
+                    default="INFO",
+                    display_name="Log Level",
+                    optional=True,
+                ),
+            ],
+            outputs=[
+                io.Image.Output("image", display_name="ASCII Image"),
+            ],
+        )
 
-    def generate_ascii_art(self,
-                           image: torch.Tensor,
-                           pixel_size: int,
-                           downscale_mode: str,
-                           aspect_ratio_correction: float,
-                           font_name: str,
-                           font_size_min: int,
-                           font_size_max: int,
-                           char_selection_mode: str,
-                           seed: int,
-                           # Optional parameters
-                           charset_source: str = "File", ### ADDED ###
-                           ascii_chars_filename: str = "set4.txt",
-                           dynamic_chars_to_test: str = "", ### ADDED ###
-                           dynamic_sigma: float = 1.5, ### ADDED ###
-                           sharpen_mode: str = "None",
-                           sharpen_amount: float = 1.0,
-                           sharpen_threshold: float = 0.0,
-                           brightness: float = 1.0,
-                           contrast: float = 1.0,
-                           mask: Optional[torch.Tensor] = None,
-                           mask_blend_radius: float = 0.0,
-                           mask_edge_adjustment: str = "None",
-                           mask_edge_factor: float = 1.0,
-                           enable_color_match: bool = False,
-                           color_match_method: str = 'mkl',
-                           log_level: str = "INFO"):
+    @classmethod
+    def execute(
+        cls,
+        image: torch.Tensor,
+        pixel_size: int,
+        downscale_mode: str,
+        aspect_ratio_correction: float,
+        font_name: str,
+        font_size_min: int,
+        font_size_max: int,
+        char_selection_mode: str,
+        seed: int,
+        charset_source: str = "File",
+        ascii_chars_filename: str = "set4.txt",
+        dynamic_chars_to_test: str = "",
+        dynamic_sigma: float = 1.5,
+        sharpen_mode: str = "None",
+        sharpen_amount: float = 1.0,
+        sharpen_threshold: float = 0.0,
+        brightness: float = 1.0,
+        contrast: float = 1.0,
+        mask: Optional[torch.Tensor] = None,
+        mask_blend_radius: float = 0.0,
+        mask_edge_adjustment: str = "None",
+        mask_edge_factor: float = 1.0,
+        enable_color_match: bool = False,
+        color_match_method: str = "mkl",
+        log_level: str = "INFO",
+    ) -> io.NodeOutput:
         """Main function called by ComfyUI to generate the ASCII art image for a batch."""
+        # Normalise optional values when inputs are omitted
+        if charset_source is None:
+            charset_source = "File"
+        if ascii_chars_filename is None:
+            ascii_chars_filename = "set4.txt"
+        if dynamic_chars_to_test is None:
+            dynamic_chars_to_test = ""
+        if dynamic_sigma is None:
+            dynamic_sigma = 1.5
+        if sharpen_mode is None:
+            sharpen_mode = "None"
+        if sharpen_amount is None:
+            sharpen_amount = 1.0
+        if sharpen_threshold is None:
+            sharpen_threshold = 0.0
+        if brightness is None:
+            brightness = 1.0
+        if contrast is None:
+            contrast = 1.0
+        if mask_blend_radius is None:
+            mask_blend_radius = 5.0
+        if mask_edge_adjustment is None:
+            mask_edge_adjustment = "None"
+        if mask_edge_factor is None:
+            mask_edge_factor = 3.0
+        if enable_color_match is None:
+            enable_color_match = False
+        if color_match_method is None:
+            color_match_method = "mkl"
+        if log_level is None:
+            log_level = "INFO"
+
         # --- 1. Setup Phase (Done Once) ---
         setup_logging(log_level, "ComfyUI.ASCIIArtNodeV3")
         logger.info(f"Starting ASCII Art Generation V3 for {image.shape[0]} image(s)")
@@ -250,8 +462,11 @@ class ASCIIArtNodeV3:
                 raise ValueError("tensor_to_pil returned an empty list.")
             logger.info(f"Converted input tensor to a list of {batch_size} PIL images.")
         except Exception as e:
-            logger.error(f"Failed to convert input image tensor to PIL list: {e}", exc_info=True)
-            return (torch.zeros_like(image),)
+            logger.error(
+                f"Failed to convert input image tensor to PIL list: {e}",
+                exc_info=True,
+            )
+            return io.NodeOutput(torch.zeros_like(image))
 
         # --- 4. Process Mask (Once, applied to all images in batch) ---
         mask_pil = None
@@ -399,30 +614,38 @@ class ASCIIArtNodeV3:
 
             # --- 5.7 Add processed image to list ---
             if final_image_for_batch:
-                 final_images_list.append(final_image_for_batch)
+                final_images_list.append(final_image_for_batch)
             else:
-                 raise RuntimeError(f"Processing failed to produce a final image for batch item {i+1}.")
+                raise RuntimeError(
+                    f"Processing failed to produce a final image for batch item {i+1}."
+                )
 
 
         # --- 6. Output Conversion (After Loop) ---
         if not final_images_list:
             logger.error("No images were successfully processed in the batch.")
-            return (torch.zeros_like(image),)
+            return io.NodeOutput(torch.zeros_like(image))
 
         try:
             output_tensor = pil_to_tensor(final_images_list)
-            logger.debug(f"Final batch of {len(final_images_list)} images converted back to tensor, shape: {output_tensor.shape}")
+            logger.debug(
+                f"Final batch of {len(final_images_list)} images converted back to tensor, "
+                f"shape: {output_tensor.shape}"
+            )
             logger.info("ASCII Art Generation V3 Finished Successfully.")
         except Exception as e:
-             logger.error(f"Failed to convert final PIL image list to tensor: {e}", exc_info=True)
-             return (torch.zeros_like(image),)
+            logger.error(
+                f"Failed to convert final PIL image list to tensor: {e}",
+                exc_info=True,
+            )
+            return io.NodeOutput(torch.zeros_like(image))
 
-        return (output_tensor,)
+        return io.NodeOutput(output_tensor)
 
 # --- Node Registration ---
 NODE_CLASS_MAPPINGS = {
     "ASCIIArtNodeV3": ASCIIArtNodeV3
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ASCIIArtNodeV3": "ASCII Art Generator V3" ### MODIFIED: Simplified name ###
+    "ASCIIArtNodeV3": "ASCII Art Generator V3"
 }
