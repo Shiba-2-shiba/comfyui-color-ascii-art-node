@@ -1,25 +1,16 @@
-# Import necessary classes from node files
-from .ascii_art_node_v3 import ASCIIArtNodeV3 # Import the new V3 class
+# __init__.py (Refactored for V3 Schema)
+
+# V3では、ノード登録は各ノードファイルのcomfy_entrypointで行われるため、
+# このファイルでNODE_CLASS_MAPPINGSやNODE_DISPLAY_NAME_MAPPINGSを定義する必要はなくなりました。
+# したがって、これらのマッピングに関連するコードはすべて削除します。
 
 # Import folder_paths for font directory registration
 from folder_paths import folder_names_and_paths
 import os
 
-# --- Node Class Mappings ---
-# Map node class names to their corresponding classes
-NODE_CLASS_MAPPINGS = {
-    "ASCIIArtNodeV3": ASCIIArtNodeV3              # Add the new V3 node
-}
-
-# --- Node Display Name Mappings ---
-# Map node class names to user-friendly display names for the ComfyUI menu
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ASCIIArtNodeV3": "ASCII Art Generator V3"         # Display name from V3 file
-}
-
 # --- Font Directory Registration ---
-# Ensure the 'font' directory is registered for font selection dropdowns
-# This part remains unchanged from your original __init__.py
+# フォントディレクトリをComfyUIに登録するこの部分は、V3でも引き続き必要です。
+# This part remains necessary in V3 to register the font directory with ComfyUI.
 if "font" not in folder_names_and_paths:
     # Get the directory where this __init__.py file is located
     base_path = os.path.dirname(os.path.realpath(__file__))
@@ -28,11 +19,14 @@ if "font" not in folder_names_and_paths:
 
     # Add the font directory path and allowed extensions to ComfyUI's folder paths
     # This allows ComfyUI to find .ttf and .otf files in the 'font' subdirectory
-    folder_names_and_paths["font"] = ([font_dir], {".ttf", ".otf"})
-    print(f"Registered font directory: {font_dir}") # Optional: Log registration
+    if os.path.isdir(font_dir):
+        folder_names_and_paths["font"] = ([font_dir], {".ttf", ".otf"})
+        print(f"ASCII Art Node: Registered font directory: {font_dir}")
+    else:
+        print(f"ASCII Art Node: Font directory not found at {font_dir}, skipping registration.")
 
 # Optional: Indicate successful loading of the custom node package
-print("Loaded ASCII Art Custom Nodes (including V3)")
+print("Loaded ASCII Art Custom Nodes (V3 Schema)")
 
-# __all__ is optional but good practice, listing exposed mappings
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+# __all__も不要になったため削除します。
+# __all__ is no longer needed and has been removed.
