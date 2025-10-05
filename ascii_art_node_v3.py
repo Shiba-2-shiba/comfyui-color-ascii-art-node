@@ -132,7 +132,7 @@ class ASCIIArtNodeV3(io.ComfyNode):
             
             # ▼▼▼【原則1, 2】V1のRETURN_TYPESを変換 ▼▼▼
             outputs=[
-                io.Image.Output(id="image", display_name="IMAGE"),
+                io.Image.Output(id="output_image", display_name="IMAGE"),
             ]
         )
 
@@ -274,15 +274,16 @@ class ASCIIArtNodeV3(io.ComfyNode):
         # ▼▼▼【原則5】返り値の厳格化 ▼▼▼
         # V1のタプル形式 `(output_tensor,)` から、io.NodeOutputオブジェクトに変更します
         # キーワード引数 `image` は、outputsで定義したidと一致させます
-        return io.NodeOutput(image=output_tensor)
+        return io.NodeOutput(output_tensor)
 
 
-# ▼▼▼【原則6】ノード登録方法 (ComfyExtension) ▼▼▼
-# NODE_CLASS_MAPPINGSは使わず、ComfyExtensionとcomfy_entrypointで登録します
-class ASCIIArtNodeExtension(ComfyExtension):
-    @override
-    async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [ASCIIArtNodeV3]
+# --- V1-style Registration ---
+# Even for V3 nodes, this mapping is crucial for the ComfyUI loader to find the node.
+# The io.ComfyNode class handles the backward compatibility automatically.
+NODE_CLASS_MAPPINGS = {
+    "ASCIIArtNodeV3": ASCIIArtNodeV3
+}
 
-async def comfy_entrypoint() -> ASCIIArtNodeExtension:
-    return ASCIIArtNodeExtension()
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "ASCIIArtNodeV3": "ASCII Art Generator V3"
+}
