@@ -280,10 +280,11 @@ class ASCIIArtNodeV3(io.ComfyNode):
 # --- V1-style Registration ---
 # Even for V3 nodes, this mapping is crucial for the ComfyUI loader to find the node.
 # The io.ComfyNode class handles the backward compatibility automatically.
-NODE_CLASS_MAPPINGS = {
-    "ASCIIArtNodeV3": ASCIIArtNodeV3
-}
+#NODE_CLASS_MAPPINGS = {
+#    "ASCIIArtNodeV3": ASCIIArtNodeV3
+#}
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ASCIIArtNodeV3": "ASCII Art Generator V3"
-}
+#NODE_DISPLAY_NAME_MAPPINGS = {
+#    "ASCIIArtNodeV3": "ASCII Art Generator V3"
+#}
+
