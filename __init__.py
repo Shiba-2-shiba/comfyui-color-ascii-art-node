@@ -1,38 +1,28 @@
-# Import necessary classes from node files
-from .ascii_art_node_v3 import ASCIIArtNodeV3 # Import the new V3 class
+# __init__.py (Final V3 Compatible)
+# This file imports the node class mappings from the node file
+# and exposes them to ComfyUI. This is the standard and most reliable way.
 
-# Import folder_paths for font directory registration
+# 1. Import the node class mappings from the node file.
+#    The WEB_DIRECTORY is also important for any web assets.
+from .ascii_art_node_v3 import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+
+# 2. Expose the mappings to ComfyUI.
+#    This allows the loader to find the nodes.
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+
+
+# --- Font Directory Registration ---
+# This part remains necessary to make fonts available in the node's dropdown.
 from folder_paths import folder_names_and_paths
 import os
 
-# --- Node Class Mappings ---
-# Map node class names to their corresponding classes
-NODE_CLASS_MAPPINGS = {
-    "ASCIIArtNodeV3": ASCIIArtNodeV3              # Add the new V3 node
-}
-
-# --- Node Display Name Mappings ---
-# Map node class names to user-friendly display names for the ComfyUI menu
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ASCIIArtNodeV3": "ASCII Art Generator V3"         # Display name from V3 file
-}
-
-# --- Font Directory Registration ---
-# Ensure the 'font' directory is registered for font selection dropdowns
-# This part remains unchanged from your original __init__.py
 if "font" not in folder_names_and_paths:
-    # Get the directory where this __init__.py file is located
     base_path = os.path.dirname(os.path.realpath(__file__))
-    # Construct the path to the 'font' subdirectory
     font_dir = os.path.join(base_path, "font")
+    if os.path.isdir(font_dir):
+        folder_names_and_paths["font"] = ([font_dir], {".ttf", ".otf"})
+        print(f"ASCII Art Node: Registered font directory: {font_dir}")
+    else:
+        print(f"ASCII Art Node: Font directory not found at {font_dir}, skipping registration.")
 
-    # Add the font directory path and allowed extensions to ComfyUI's folder paths
-    # This allows ComfyUI to find .ttf and .otf files in the 'font' subdirectory
-    folder_names_and_paths["font"] = ([font_dir], {".ttf", ".otf"})
-    print(f"Registered font directory: {font_dir}") # Optional: Log registration
-
-# Optional: Indicate successful loading of the custom node package
-print("Loaded ASCII Art Custom Nodes (including V3)")
-
-# __all__ is optional but good practice, listing exposed mappings
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+print("Loaded ASCII Art Custom Nodes (V3 Compatible)")
