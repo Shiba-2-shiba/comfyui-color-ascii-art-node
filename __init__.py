@@ -1,18 +1,28 @@
-# __init__.py (Final V3 Compatible)
-# This file imports the node class mappings from the node file
-# and exposes them to ComfyUI. This is the standard and most reliable way.
+# __init__.py (V3 comfy_entrypoint
+# 
+# V3の作法に則り、ComfyExtensionを定義し、
+# comfy_entrypoint関数からそのインスタンスを返すように変更します。
 
-# 1. Import the node class mappings from the node file.
-#    The WEB_DIRECTORY is also important for any web assets.
-from .ascii_art_node_v3 import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+# 1. 必要なV3モジュールと、登録したいノードクラスをインポートします
+from comfy_api.latest import ComfyExtension, io
+from typing_extensions import override
+from .ascii_art_node_v3 import ASCIIArtNodeV3
 
-# 2. Expose the mappings to ComfyUI.
-#    This allows the loader to find the nodes.
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+# 2. ComfyExtensionを継承したクラスを作成します
+class ASCIIArtExtensionV3(ComfyExtension):
+    # get_node_listメソッドで、登録したいノードクラスのリストを返します
+    @override
+    async def get_node_list(self) -> list[type[io.ComfyNode]]:
+        return [ASCIIArtNodeV3]
+
+# 3. comfy_entrypointという名前の非同期関数を定義し、
+#    上で作成したExtensionクラスのインスタンスを返します
+async def comfy_entrypoint() -> ASCIIArtExtensionV3:
+    return ASCIIArtExtensionV3()
 
 
 # --- Font Directory Registration ---
-# This part remains necessary to make fonts available in the node's dropdown.
+# この部分はノードの機能に必要なので、そのまま残します
 from folder_paths import folder_names_and_paths
 import os
 
@@ -25,4 +35,4 @@ if "font" not in folder_names_and_paths:
     else:
         print(f"ASCII Art Node: Font directory not found at {font_dir}, skipping registration.")
 
-print("Loaded ASCII Art Custom Nodes (V3 Compatible)")
+print("Loaded ASCII Art Custom Nodes (V3 Entrypoint)")
