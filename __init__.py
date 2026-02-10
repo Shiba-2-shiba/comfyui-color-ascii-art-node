@@ -1,4 +1,4 @@
-# __init__.py (V3 comfy_entrypoint
+# __init__.py (V3 comfy_entrypoint)
 # 
 # V3の作法に則り、ComfyExtensionを定義し、
 # comfy_entrypoint関数からそのインスタンスを返すように変更します。
@@ -7,13 +7,14 @@
 from comfy_api.latest import ComfyExtension, io
 from typing_extensions import override
 from .ascii_art_node_v3 import ASCIIArtNodeV3
+from .ascii_art_custom_font import ASCIIArtCustomFont
 
 # 2. ComfyExtensionを継承したクラスを作成します
 class ASCIIArtExtensionV3(ComfyExtension):
     # get_node_listメソッドで、登録したいノードクラスのリストを返します
     @override
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [ASCIIArtNodeV3]
+        return [ASCIIArtNodeV3, ASCIIArtCustomFont]
 
 # 3. comfy_entrypointという名前の非同期関数を定義し、
 #    上で作成したExtensionクラスのインスタンスを返します
