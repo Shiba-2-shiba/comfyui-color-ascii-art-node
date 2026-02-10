@@ -35,8 +35,8 @@ class ASCIIArtCustomFont(io.ComfyNode):
             category="Image Processing/ASCII Art",
             inputs=[
                 io.Image.Input(id="image"),
-                io.Int.Input(id="pixel_size", default=20, min=1, max=200, step=1, label="Grid (Pixel) Size"),
-                io.Float.Input(id="resolution_scale", default=4.0, min=1.0, max=16.0, step=0.1, label="Resolution Scale"),
+                io.Int.Input(id="pixel_size", default=20, min=1, max=200, step=1, display_name="Grid (Pixel) Size"),
+                io.Float.Input(id="resolution_scale", default=4.0, min=1.0, max=16.0, step=0.1, display_name="Resolution Scale"),
                 io.Combo.Input(id="downscale_mode", options=cls.DOWNSCALE_MODES, default="area"),
                 io.Float.Input(id="aspect_ratio_correction", default=0.75, min=0.1, max=10.0, step=0.05),
                 io.Combo.Input(id="font_name", options=font_list),
@@ -257,3 +257,4 @@ class ASCIIArtCustomFont(io.ComfyNode):
 
         output_tensor = pil_to_tensor(final_images_list)
         return io.NodeOutput(output_tensor)
+
