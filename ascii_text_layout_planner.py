@@ -1,7 +1,6 @@
 import logging
 import os
 
-import numpy as np
 import torch
 from PIL import Image, ImageOps, ImageSequence
 from comfy_api.latest import io
@@ -128,11 +127,6 @@ class ASCIITextLayoutPlanner(io.ComfyNode):
             ],
             outputs=[
                 io.Image.Output(id="output_image", display_name="IMAGE"),
-                io.Int.Output(id="required_chars"),
-                io.Int.Output(id="grid_width"),
-                io.Int.Output(id="grid_height"),
-                io.Int.Output(id="render_width"),
-                io.Int.Output(id="render_height"),
             ],
         )
 
@@ -154,21 +148,12 @@ class ASCIITextLayoutPlanner(io.ComfyNode):
         image_np = image_tensor[0].cpu().numpy()
         image_height, image_width = image_np.shape[0], image_np.shape[1]
 
-        grid_width, grid_height, required_chars = calculate_text_grid(
-            (image_width, image_height),
-            pixel_size,
-            aspect_ratio_correction,
-        )
-        render_width = int(image_width * resolution_scale)
-        render_height = int(image_height * resolution_scale)
+        # Keep the same validation path used by the live planner UI.
+        calculate_text_grid((image_width, image_height), pixel_size, aspect_ratio_correction)
+        _ = int(image_width * resolution_scale), int(image_height * resolution_scale)
 
         return io.NodeOutput(
             image_tensor,
-            required_chars,
-            grid_width,
-            grid_height,
-            render_width,
-            render_height,
         )
 
     @classmethod
