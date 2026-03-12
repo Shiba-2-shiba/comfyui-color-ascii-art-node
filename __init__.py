@@ -11,6 +11,8 @@ from .ascii_art_custom_font import ASCIIArtCustomFont
 from .ascii_text_layout_planner import ASCIITextLayoutPlanner
 from .ascii_novel_text_art import ASCIINovelTextArt
 
+WEB_DIRECTORY = "web"
+
 # 2. ComfyExtensionを継承したクラスを作成します
 class ASCIIArtExtensionV3(ComfyExtension):
     # get_node_listメソッドで、登録したいノードクラスのリストを返します

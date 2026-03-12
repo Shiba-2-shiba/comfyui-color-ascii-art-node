@@ -8,7 +8,11 @@ from PIL import Image, ImageDraw
 from comfy_api.latest import io
 
 try:
-    from folder_paths import get_filename_list, get_full_path
+    from folder_paths import (
+        exists_annotated_filepath,
+        get_filename_list,
+        get_full_path,
+    )
 except ImportError:
     def get_filename_list(dir_name):
         if dir_name == "font":
@@ -18,6 +22,9 @@ except ImportError:
     def get_full_path(dir_name, filename):
         return os.path.abspath(filename)
 
+    def exists_annotated_filepath(filename):
+        return os.path.isfile(os.path.abspath(filename))
+
 try:
     from .ascii_drawing import _get_font
     from .ascii_utils import pil_to_tensor, tensor_to_pil
@@ -26,8 +33,10 @@ try:
         build_text_cells,
         calculate_text_grid,
         inspect_font_support,
+        list_input_text_files,
         load_text_file,
         make_layout_report,
+        resolve_input_text_file,
     )
 except ImportError:
     import sys
@@ -39,8 +48,10 @@ except ImportError:
         build_text_cells,
         calculate_text_grid,
         inspect_font_support,
+        list_input_text_files,
         load_text_file,
         make_layout_report,
+        resolve_input_text_file,
     )
 
 
@@ -67,7 +78,16 @@ def _create_background_canvas(
     raise ValueError(f"Unsupported background_mode: {background_mode}")
 
 
-def _resolve_draw_color(char_color_mode: str, sampled_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
+def _background_luminance(color: Tuple[int, int, int]) -> float:
+    r, g, b = color
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _resolve_draw_color(
+    char_color_mode: str,
+    sampled_color: Tuple[int, int, int],
+    background_color: Tuple[int, int, int],
+) -> Tuple[int, int, int]:
     if char_color_mode == "sampled_color":
         return sampled_color
     if char_color_mode == "grayscale":
@@ -76,6 +96,10 @@ def _resolve_draw_color(char_color_mode: str, sampled_color: Tuple[int, int, int
     if char_color_mode == "black":
         return (0, 0, 0)
     if char_color_mode == "knockout_white":
+        luminance = _background_luminance(background_color)
+        if luminance >= 235:
+            tint_value = max(160, min(210, int(round(210 - (luminance - 235) * 2.0))))
+            return (tint_value, tint_value, tint_value)
         return (255, 255, 255)
     raise ValueError(f"Unsupported char_color_mode: {char_color_mode}")
 
@@ -142,9 +166,12 @@ def _render_text_grid(
                 continue
 
             sampled_color = tuple(int(value) for value in image_np[y, x])
-            draw_color = _resolve_draw_color(char_color_mode, sampled_color)
             paste_x = int(x * cell_w) + offset_x
             paste_y = int(y * cell_h) + offset_y
+            center_x = min(out_w - 1, max(0, int((x + 0.5) * cell_w)))
+            center_y = min(out_h - 1, max(0, int((y + 0.5) * cell_h)))
+            background_color = base_canvas.getpixel((center_x, center_y))
+            draw_color = _resolve_draw_color(char_color_mode, sampled_color, background_color)
 
             try:
                 base_canvas.paste(draw_color, (paste_x, paste_y), mask_img)
@@ -176,6 +203,9 @@ class ASCIINovelTextArt(io.ComfyNode):
             node_id="ASCIINovelTextArt",
             display_name="ASCII Novel Text Art",
             category="Image Processing/ASCII Art",
+            description="Render ASCII art from an image and an uploaded text file, consuming the text sequentially across the grid.",
+            search_aliases=["novel ascii", "text ascii art", "txt ascii art", "ascii novel"],
+            essentials_category="Image Tools/ASCII Art",
             inputs=[
                 io.Image.Input(id="image"),
                 io.Int.Input(id="pixel_size", default=20, min=1, max=200, step=1),
@@ -184,7 +214,12 @@ class ASCIINovelTextArt(io.ComfyNode):
                 io.Float.Input(id="aspect_ratio_correction", default=0.75, min=0.1, max=10.0, step=0.05),
                 io.Combo.Input(id="font_name", options=font_list),
                 io.Int.Input(id="font_size", default=12, min=1, max=300, step=1),
-                io.String.Input(id="text_file_path", default=""),
+                io.Combo.Input(
+                    id="text_file_path",
+                    options=list_input_text_files(),
+                    upload=io.UploadType.model,
+                    tooltip="Drag and drop a .txt file to upload it into ComfyUI input files.",
+                ),
                 io.Combo.Input(id="char_color_mode", options=cls.CHAR_COLOR_MODES, default="sampled_color", optional=True),
                 io.Combo.Input(id="background_mode", options=cls.BACKGROUND_MODES, default="white", optional=True),
                 io.Combo.Input(id="text_encoding", options=cls.TEXT_ENCODINGS, default="utf-8", optional=True),
@@ -235,8 +270,9 @@ class ASCIINovelTextArt(io.ComfyNode):
         if not font_path or not os.path.isfile(font_path):
             raise FileNotFoundError(f"Font file '{font_name}' not found.")
 
+        resolved_text_path = resolve_input_text_file(text_file_path)
         text_content, selected_encoding = load_text_file(
-            text_file_path,
+            resolved_text_path,
             encoding=text_encoding,
             newline_mode=newline_mode,
         )
@@ -250,9 +286,6 @@ class ASCIINovelTextArt(io.ComfyNode):
         render_width = 0
         render_height = 0
         warnings: List[str] = []
-
-        if char_color_mode == "knockout_white" and background_mode == "white":
-            warnings.append("knockout_white_on_white_background_has_low_visibility")
 
         for pil_image in pil_images:
             pixelated_image = pixelate_image(
@@ -325,3 +358,13 @@ class ASCIINovelTextArt(io.ComfyNode):
 
         output_tensor = pil_to_tensor(rendered_images)
         return io.NodeOutput(output_tensor, used_chars, required_chars, report_text)
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, text_file_path=None, **_kwargs):
+        if not text_file_path:
+            return "Text file is required."
+        if not text_file_path.lower().endswith(".txt"):
+            return f"Only .txt files are supported: {text_file_path}"
+        if not exists_annotated_filepath(text_file_path):
+            return f"Invalid text file: {text_file_path}"
+        return True

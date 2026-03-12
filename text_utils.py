@@ -3,6 +3,11 @@ import os
 from typing import Dict, List, Tuple
 
 try:
+    import folder_paths
+except ImportError:
+    folder_paths = None
+
+try:
     from .ascii_drawing import _get_font
 except ImportError:
     import sys
@@ -28,6 +33,43 @@ NEWLINE_MODES = ("remove", "space", "preserve")
 TEXT_SHORTAGE_MODES = ("error", "loop", "truncate_blank")
 
 
+def list_input_text_files() -> List[str]:
+    if folder_paths is None:
+        return sorted(
+            f for f in os.listdir(".")
+            if os.path.isfile(f) and f.lower().endswith(".txt")
+        )
+
+    input_dir = folder_paths.get_input_directory()
+    return sorted(
+        f for f in os.listdir(input_dir)
+        if os.path.isfile(os.path.join(input_dir, f)) and f.lower().endswith(".txt")
+    )
+
+
+def resolve_input_text_file(text_file: str) -> str:
+    if not text_file:
+        raise ValueError("text_file is empty.")
+    if not text_file.lower().endswith(".txt"):
+        raise ValueError(f"Only .txt files are supported: {text_file}")
+
+    if folder_paths is None:
+        if os.path.isfile(text_file):
+            return text_file
+        candidate = os.path.abspath(text_file)
+        if os.path.isfile(candidate):
+            return candidate
+        raise FileNotFoundError(f"Text file not found: {text_file}")
+
+    if not folder_paths.exists_annotated_filepath(text_file):
+        raise FileNotFoundError(f"Text file not found: {text_file}")
+
+    resolved = folder_paths.get_annotated_filepath(text_file)
+    if not resolved.lower().endswith(".txt"):
+        raise ValueError(f"Only .txt files are supported: {text_file}")
+    return resolved
+
+
 def normalize_text_stream(text: str, newline_mode: str) -> str:
     if newline_mode not in NEWLINE_MODES:
         raise ValueError(f"Unsupported newline_mode: {newline_mode}")
@@ -46,7 +88,11 @@ def normalize_text_stream(text: str, newline_mode: str) -> str:
 def load_text_file(file_path: str, encoding: str = "utf-8", newline_mode: str = "remove") -> Tuple[str, str]:
     if not file_path:
         raise ValueError("text_file_path is empty.")
-    if not os.path.isfile(file_path):
+
+    resolved_path = file_path
+    if not os.path.isfile(resolved_path):
+        resolved_path = resolve_input_text_file(file_path)
+    if not os.path.isfile(resolved_path):
         raise FileNotFoundError(f"Text file not found: {file_path}")
 
     encodings_to_try = SUPPORTED_ENCODINGS if encoding == "auto" else (encoding,)
@@ -56,7 +102,7 @@ def load_text_file(file_path: str, encoding: str = "utf-8", newline_mode: str = 
 
     for candidate in encodings_to_try:
         try:
-            with open(file_path, "r", encoding=candidate) as file:
+            with open(resolved_path, "r", encoding=candidate) as file:
                 loaded_text = file.read()
             selected_encoding = candidate
             break
@@ -66,9 +112,9 @@ def load_text_file(file_path: str, encoding: str = "utf-8", newline_mode: str = 
     if loaded_text is None:
         if last_error:
             raise RuntimeError(
-                f"Failed to decode text file '{file_path}' with encoding '{encoding}'."
+                f"Failed to decode text file '{resolved_path}' with encoding '{encoding}'."
             ) from last_error
-        raise RuntimeError(f"Failed to read text file '{file_path}'.")
+        raise RuntimeError(f"Failed to read text file '{resolved_path}'.")
 
     return normalize_text_stream(loaded_text, newline_mode), selected_encoding
 
