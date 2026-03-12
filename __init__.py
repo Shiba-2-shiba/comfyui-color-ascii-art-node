@@ -8,13 +8,15 @@ from comfy_api.latest import ComfyExtension, io
 from typing_extensions import override
 from .ascii_art_node_v3 import ASCIIArtNodeV3
 from .ascii_art_custom_font import ASCIIArtCustomFont
+from .ascii_text_layout_planner import ASCIITextLayoutPlanner
+from .ascii_novel_text_art import ASCIINovelTextArt
 
 # 2. ComfyExtensionを継承したクラスを作成します
 class ASCIIArtExtensionV3(ComfyExtension):
     # get_node_listメソッドで、登録したいノードクラスのリストを返します
     @override
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [ASCIIArtNodeV3, ASCIIArtCustomFont]
+        return [ASCIIArtNodeV3, ASCIIArtCustomFont, ASCIITextLayoutPlanner, ASCIINovelTextArt]
 
 # 3. comfy_entrypointという名前の非同期関数を定義し、
 #    上で作成したExtensionクラスのインスタンスを返します
