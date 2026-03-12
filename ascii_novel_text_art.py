@@ -8,7 +8,11 @@ from PIL import Image, ImageDraw
 from comfy_api.latest import io
 
 try:
-    from folder_paths import get_filename_list, get_full_path
+    from folder_paths import (
+        exists_annotated_filepath,
+        get_filename_list,
+        get_full_path,
+    )
 except ImportError:
     def get_filename_list(dir_name):
         if dir_name == "font":
@@ -17,6 +21,9 @@ except ImportError:
 
     def get_full_path(dir_name, filename):
         return os.path.abspath(filename)
+
+    def exists_annotated_filepath(filename):
+        return os.path.isfile(os.path.abspath(filename))
 
 try:
     from .ascii_drawing import _get_font
@@ -28,6 +35,7 @@ try:
         inspect_font_support,
         load_text_file,
         make_layout_report,
+        resolve_input_text_file,
     )
 except ImportError:
     import sys
@@ -41,6 +49,7 @@ except ImportError:
         inspect_font_support,
         load_text_file,
         make_layout_report,
+        resolve_input_text_file,
     )
 
 
@@ -67,7 +76,31 @@ def _create_background_canvas(
     raise ValueError(f"Unsupported background_mode: {background_mode}")
 
 
-def _resolve_draw_color(char_color_mode: str, sampled_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
+def _background_luminance(color: Tuple[int, int, int]) -> float:
+    r, g, b = color
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _sample_luminance(color: Tuple[int, int, int]) -> float:
+    r, g, b = color
+    return ((r * 0.299) + (g * 0.587) + (b * 0.114)) / 255.0
+
+
+def _compute_font_scale(sampled_color: Tuple[int, int, int], adaptive_font_strength: float) -> float:
+    if adaptive_font_strength <= 0:
+        return 1.0
+
+    luminance = _sample_luminance(sampled_color)
+    min_scale = max(0.55, 1.0 - (adaptive_font_strength * 0.45))
+    max_scale = 1.0 + (adaptive_font_strength * 0.8)
+    return min_scale + ((1.0 - luminance) * (max_scale - min_scale))
+
+
+def _resolve_draw_color(
+    char_color_mode: str,
+    sampled_color: Tuple[int, int, int],
+    background_color: Tuple[int, int, int],
+) -> Tuple[int, int, int]:
     if char_color_mode == "sampled_color":
         return sampled_color
     if char_color_mode == "grayscale":
@@ -76,18 +109,26 @@ def _resolve_draw_color(char_color_mode: str, sampled_color: Tuple[int, int, int
     if char_color_mode == "black":
         return (0, 0, 0)
     if char_color_mode == "knockout_white":
+        luminance = _background_luminance(background_color)
+        if luminance >= 235:
+            tint_value = max(160, min(210, int(round(210 - (luminance - 235) * 2.0))))
+            return (tint_value, tint_value, tint_value)
         return (255, 255, 255)
     raise ValueError(f"Unsupported char_color_mode: {char_color_mode}")
 
 
 def _render_text_grid(
     base_canvas: Image.Image,
+    source_canvas: Image.Image,
     pixelated_image: Image.Image,
     text_cells: List[str],
     font_path: str,
     font_size: int,
     resolution_scale: float,
     char_color_mode: str,
+    text_opacity: float,
+    blend_strength: float,
+    adaptive_font_strength: float,
 ) -> Image.Image:
     out_w, out_h = base_canvas.size
     grid_w, grid_h = pixelated_image.size
@@ -97,18 +138,19 @@ def _render_text_grid(
     cell_w = out_w / grid_w
     cell_h = out_h / grid_h
     image_np = np.array(pixelated_image)
+    base_rgba = base_canvas.convert("RGBA")
+    text_layer = Image.new("RGBA", (out_w, out_h), (0, 0, 0, 0))
     scaled_font_size = max(1, int(font_size * resolution_scale))
-    font = _get_font(font_path, scaled_font_size)
-    if font is None:
-        raise ValueError(f"Could not load font at size {scaled_font_size}: {font_path}")
-
-    glyph_cache: Dict[str, Tuple[Image.Image, int, int]] = {}
+    glyph_cache: Dict[Tuple[str, int], Tuple[Image.Image, Image.Image, int, int]] = {}
     cell_index = 0
+    opacity_alpha = max(0, min(255, int(round(text_opacity * 255.0))))
+    blend_strength = max(0.0, min(1.0, blend_strength))
 
     for y in range(grid_h):
         for x in range(grid_w):
             if cell_index >= len(text_cells):
-                return base_canvas
+                composited = Image.alpha_composite(base_rgba, text_layer).convert("RGB")
+                return Image.blend(source_canvas, composited, blend_strength)
 
             char = text_cells[cell_index]
             cell_index += 1
@@ -116,16 +158,25 @@ def _render_text_grid(
             if char in ("\n", "\r"):
                 continue
 
-            glyph_data = glyph_cache.get(char)
+            sampled_color = tuple(int(value) for value in image_np[y, x])
+            dynamic_font_size = max(
+                1,
+                int(round(scaled_font_size * _compute_font_scale(sampled_color, adaptive_font_strength))),
+            )
+            glyph_key = (char, dynamic_font_size)
+            glyph_data = glyph_cache.get(glyph_key)
             if glyph_data is None:
+                font = _get_font(font_path, dynamic_font_size)
+                if font is None:
+                    raise ValueError(f"Could not load font at size {dynamic_font_size}: {font_path}")
                 try:
                     bbox = font.getbbox(char)
                 except Exception:
-                    glyph_cache[char] = (None, 0, 0)
+                    glyph_cache[glyph_key] = (None, None, 0, 0)
                     continue
 
                 if bbox is None:
-                    glyph_cache[char] = (None, 0, 0)
+                    glyph_cache[glyph_key] = (None, None, 0, 0)
                     continue
 
                 left, top, right, bottom = bbox
@@ -134,24 +185,31 @@ def _render_text_grid(
                 mask_img = Image.new("L", (width, height), 0)
                 draw = ImageDraw.Draw(mask_img)
                 draw.text((-left, -top), char, font=font, fill=255)
-                glyph_data = (mask_img, left, top)
-                glyph_cache[char] = glyph_data
+                alpha_mask = mask_img if opacity_alpha >= 255 else mask_img.point(
+                    lambda value: (value * opacity_alpha) // 255
+                )
+                glyph_data = (mask_img, alpha_mask, left, top)
+                glyph_cache[glyph_key] = glyph_data
 
-            mask_img, offset_x, offset_y = glyph_data
-            if mask_img is None:
+            mask_img, alpha_mask, offset_x, offset_y = glyph_data
+            if mask_img is None or alpha_mask is None:
                 continue
 
-            sampled_color = tuple(int(value) for value in image_np[y, x])
-            draw_color = _resolve_draw_color(char_color_mode, sampled_color)
             paste_x = int(x * cell_w) + offset_x
             paste_y = int(y * cell_h) + offset_y
+            center_x = min(out_w - 1, max(0, int((x + 0.5) * cell_w)))
+            center_y = min(out_h - 1, max(0, int((y + 0.5) * cell_h)))
+            background_color = base_canvas.getpixel((center_x, center_y))
+            draw_color = _resolve_draw_color(char_color_mode, sampled_color, background_color)
+            draw_rgba = (*draw_color, opacity_alpha)
 
             try:
-                base_canvas.paste(draw_color, (paste_x, paste_y), mask_img)
+                text_layer.paste(draw_rgba, (paste_x, paste_y), alpha_mask)
             except Exception:
                 logger.debug("Skipping glyph paste failure at (%s, %s)", x, y, exc_info=True)
 
-    return base_canvas
+    composited = Image.alpha_composite(base_rgba, text_layer).convert("RGB")
+    return Image.blend(source_canvas, composited, blend_strength)
 
 
 class ASCIINovelTextArt(io.ComfyNode):
@@ -176,6 +234,9 @@ class ASCIINovelTextArt(io.ComfyNode):
             node_id="ASCIINovelTextArt",
             display_name="ASCII Novel Text Art",
             category="Image Processing/ASCII Art",
+            description="Render ASCII art from an image and an uploaded text file, consuming the text sequentially across the grid.",
+            search_aliases=["novel ascii", "text ascii art", "txt ascii art", "ascii novel"],
+            essentials_category="Image Tools/ASCII Art",
             inputs=[
                 io.Image.Input(id="image"),
                 io.Int.Input(id="pixel_size", default=20, min=1, max=200, step=1),
@@ -184,12 +245,20 @@ class ASCIINovelTextArt(io.ComfyNode):
                 io.Float.Input(id="aspect_ratio_correction", default=0.75, min=0.1, max=10.0, step=0.05),
                 io.Combo.Input(id="font_name", options=font_list),
                 io.Int.Input(id="font_size", default=12, min=1, max=300, step=1),
-                io.String.Input(id="text_file_path", default=""),
+                io.Float.Input(id="text_opacity", default=0.55, min=0.05, max=1.0, step=0.05),
+                io.Float.Input(id="blend_strength", default=0.8, min=0.0, max=1.0, step=0.05),
+                io.Float.Input(id="adaptive_font_strength", default=0.35, min=0.0, max=1.0, step=0.05),
+                io.String.Input(
+                    id="text_file_path",
+                    default="",
+                    placeholder="Drop a .txt file below or enter a filename from input/",
+                    tooltip="TXT filename stored in ComfyUI input files. Use the upload area below this field.",
+                ),
                 io.Combo.Input(id="char_color_mode", options=cls.CHAR_COLOR_MODES, default="sampled_color", optional=True),
                 io.Combo.Input(id="background_mode", options=cls.BACKGROUND_MODES, default="white", optional=True),
                 io.Combo.Input(id="text_encoding", options=cls.TEXT_ENCODINGS, default="utf-8", optional=True),
                 io.Combo.Input(id="newline_mode", options=cls.NEWLINE_MODES, default="remove", optional=True),
-                io.Combo.Input(id="text_shortage_mode", options=cls.TEXT_SHORTAGE_MODES, default="error", optional=True),
+                io.Combo.Input(id="text_shortage_mode", options=cls.TEXT_SHORTAGE_MODES, default="loop", optional=True),
                 io.Combo.Input(id="sharpen_mode", options=cls.SHARPEN_MODES, default="None", optional=True),
                 io.Float.Input(id="sharpen_amount", default=1.0, min=0.0, max=5.0, step=0.1, optional=True),
                 io.Float.Input(id="sharpen_threshold", default=0.0, min=0.0, max=1.0, step=0.01, optional=True),
@@ -216,11 +285,14 @@ class ASCIINovelTextArt(io.ComfyNode):
         font_name: str,
         font_size: int,
         text_file_path: str,
+        text_opacity: float = 0.55,
+        blend_strength: float = 0.8,
+        adaptive_font_strength: float = 0.35,
         char_color_mode: str = "sampled_color",
         background_mode: str = "white",
         text_encoding: str = "utf-8",
         newline_mode: str = "remove",
-        text_shortage_mode: str = "error",
+        text_shortage_mode: str = "loop",
         sharpen_mode: str = "None",
         sharpen_amount: float = 1.0,
         sharpen_threshold: float = 0.0,
@@ -235,8 +307,9 @@ class ASCIINovelTextArt(io.ComfyNode):
         if not font_path or not os.path.isfile(font_path):
             raise FileNotFoundError(f"Font file '{font_name}' not found.")
 
+        resolved_text_path = resolve_input_text_file(text_file_path)
         text_content, selected_encoding = load_text_file(
-            text_file_path,
+            resolved_text_path,
             encoding=text_encoding,
             newline_mode=newline_mode,
         )
@@ -250,9 +323,6 @@ class ASCIINovelTextArt(io.ComfyNode):
         render_width = 0
         render_height = 0
         warnings: List[str] = []
-
-        if char_color_mode == "knockout_white" and background_mode == "white":
-            warnings.append("knockout_white_on_white_background_has_low_visibility")
 
         for pil_image in pil_images:
             pixelated_image = pixelate_image(
@@ -295,14 +365,19 @@ class ASCIINovelTextArt(io.ComfyNode):
                 (render_width, render_height),
                 background_mode,
             )
+            source_canvas = pil_image.resize((render_width, render_height), Image.Resampling.LANCZOS).convert("RGB")
             rendered_image = _render_text_grid(
                 base_canvas=base_canvas,
+                source_canvas=source_canvas,
                 pixelated_image=pixelated_image,
                 text_cells=text_cells,
                 font_path=font_path,
                 font_size=font_size,
                 resolution_scale=resolution_scale,
                 char_color_mode=char_color_mode,
+                text_opacity=text_opacity,
+                blend_strength=blend_strength,
+                adaptive_font_strength=adaptive_font_strength,
             )
             rendered_images.append(rendered_image)
 
@@ -322,6 +397,19 @@ class ASCIINovelTextArt(io.ComfyNode):
         report_text += f"\nused_chars={used_chars}"
         report_text += f"\nchar_color_mode={char_color_mode}"
         report_text += f"\nbackground_mode={background_mode}"
+        report_text += f"\ntext_opacity={text_opacity:.2f}"
+        report_text += f"\nblend_strength={blend_strength:.2f}"
+        report_text += f"\nadaptive_font_strength={adaptive_font_strength:.2f}"
 
         output_tensor = pil_to_tensor(rendered_images)
         return io.NodeOutput(output_tensor, used_chars, required_chars, report_text)
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, text_file_path=None, **_kwargs):
+        if not text_file_path:
+            return "Text file is required."
+        if not text_file_path.lower().endswith(".txt"):
+            return f"Only .txt files are supported: {text_file_path}"
+        if not exists_annotated_filepath(text_file_path):
+            return f"Invalid text file: {text_file_path}"
+        return True
